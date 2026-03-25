@@ -37,24 +37,21 @@ def _request_id(req: Request) -> str:
 
 
 def _cors_headers(origin: str | None) -> dict[str, str]:
-    if origin and origin == SETTINGS.allowed_origin:
-        return {
-            "Access-Control-Allow-Origin": origin,
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, X-Request-Id",
-            "Vary": "Origin",
-        }
-    return {}
+    # Разрешаем любые origin, пока whitelist не важен.
+    # Для Vercel/бродузера лучше отражать пришедший Origin (если он есть).
+    allow_origin = origin or "*"
+    return {
+        "Access-Control-Allow-Origin": allow_origin,
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        # Authorization нужен, т.к. запросы к backend используют Bearer токен.
+        "Access-Control-Allow-Headers": "Content-Type, X-Request-Id, Authorization",
+        "Vary": "Origin",
+    }
 
 
 def _verify_origin(origin: str | None) -> None:
-    if origin != SETTINGS.allowed_origin:
-        raise ApiError(
-            403,
-            "FORBIDDEN_ORIGIN",
-            "Origin is not allowed",
-            {"allowed_origin": SETTINGS.allowed_origin, "received_origin": origin},
-        )
+    # Временно отключено: проверка origin не критична для MVP.
+    return None
 
 
 def _rate_key(req: Request, origin: str) -> str:
@@ -89,8 +86,6 @@ async def health() -> dict[str, str]:
 @app.options("/api/patents/search")
 async def patents_search_options(request: Request) -> Response:
     origin = request.headers.get("origin")
-    if origin != SETTINGS.allowed_origin:
-        return Response(status_code=403)
     return Response(status_code=204, headers=_cors_headers(origin))
 
 
